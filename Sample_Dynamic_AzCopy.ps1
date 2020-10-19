@@ -21,9 +21,9 @@ sample scripts or documentation, even if Microsoft has been advised of the possi
 ##############################################################
 
 $orig_execution_policy =  Get-ExecutionPolicy
-$azblob_sas_token = '?sv=2019-12-12&ss=bfqt&srt=sco&sp=rwdlacupx&se=2020-10-21T09:30:12Z&st=2020-10-19T01:30:12Z&spr=https&sig=6HGaWAW6u2pw4vh8DY15GMp%2F1YhUaXggR8xaUwlE8Lo%3D'
-$azblob_storage_acct = 'jejohndemoblob'
-$azblob_storage_acct_container = 'azcopy-demo'
+$azblob_sas_token = '?sv=xxxxxxxxxxxxxxxxxxxxxxxx'
+$azblob_storage_acct = 'xxxxxxx'
+$azblob_storage_acct_container = 'xxxxxx'
 $azblob_storage_container_endpoint = "https://$azblob_storage_acct.blob.core.windows.net/$azblob_storage_acct_container"
 
 # DEBUG - Print Current Execution Policy.
