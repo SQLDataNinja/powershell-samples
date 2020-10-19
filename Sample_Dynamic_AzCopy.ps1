@@ -15,64 +15,100 @@ sample scripts or documentation, even if Microsoft has been advised of the possi
 
 ##############################################################
 # Dynamic AzCopy to Blob
-# Version:        1.1
+# Version:        1.2
 # Author:         jessica.johnson@microsoft.com
-# Last Update :   10-18-2020
+# Last Update :   10-19-2020
 ##############################################################
 
-# Initialize Variables
-$azblob_sas_token = ''
-$azblob_storage_acct = ''
-$azblob_storage_acct_container = ''
-$azblob_storage_container_endpoint = ''
+[CmdletBinding()]
+Param(
 
-# Store to variable current PowerShell ExecutionPolicy 
-$orig_execution_policy =  Get-ExecutionPolicy
+    # Script Params for Azure Storage Blob info.
+    [Parameter(Mandatory=$TRUE, HelpMessage="Name of targeted Azure Storage Blob Account.")]
+    [string]$StorageAccount,
 
-# DEBUG - Print Current Execution Policy.
-#Write-Host "---------[[DEBUG]] Current Execution Policy = $orig_execution_policy"
+    [Parameter(Mandatory=$TRUE, HelpMessage="Name of targeted Azure Storage Blob Container.")]
+    [string]$StorageContainer,
 
-# Check proper Execution Policy is set to run script.
-if($orig_execution_policy -ne "RemoteSigned"){
-    Set-ExecutionPolicy RemoteSigned -Force
+    [Parameter(Mandatory=$TRUE, HelpMessage="SAS Token for access to targeted Azure Storage Blob Container.")]
+    [string]$SASToken,
+
+    # Param for local file path for files that will be uploaded to Blob.
+    [Parameter(Mandatory=$TRUE, HelpMessage="Local source directory for processing.")]
+    [string]$LocalDirPath
+)
+
+function CheckPSExecutionPolicy{
+    # Store to variable current PowerShell ExecutionPolicy 
+    $OrigExecutionPolicy =  Get-ExecutionPolicy
+
+    # DEBUG - Print Current Execution Policy.
+    #Write-Host "---------[[DEBUG]] Current Execution Policy = $OrigExecutionPolicy"
+
+    # Check proper Execution Policy is set to run script.
+    if($OrigExecutionPolicy -ne "RemoteSigned"){
+        Set-ExecutionPolicy RemoteSigned -Force
+    }
+
+    return $OrigExecutionPolicy
 }
 
-# Prompt user for local file path for files that will be uploaded to Blob.
-[string]$local_file_path = Read-Host -Prompt 'Local File Path: '
+function UploadDirFilesToBlob{
 
-# Prompt user for Azure Storage Blob info.
-[string]$azblob_sas_token = Read-Host -Prompt 'Azure Blob Storage SAS Token: '
-[string]$azblob_storage_acct = Read-Host -Prompt 'Azure Blob Storage Account: '
-[string]$azblob_storage_acct_container= Read-Host -Prompt 'Azure Blob Storage Container: '
+    param([string]$StorageAccount,[string]$StorageContainer,[string]$SASToken,[string]$LocalDirPath)
 
-# Build dynamic Azure Storage Blob endpoint based on user input.
-$azblob_storage_container_endpoint = "https://$azblob_storage_acct.blob.core.windows.net/$azblob_storage_acct_container"
+    # Initialize Variables
+    $StorageContainerEndpoint = ''
 
-# DEBUG - Print user input for local file path.
-#Write-Host "---------[[DEBUG]] Local File Path = $local_file_path"
+    # Build dynamic Azure Storage Blob endpoint based on user input.
+    $StorageContainerEndpoint = "https://$StorageAccount.blob.core.windows.net/$StorageContainer"
 
-# Check user input local file path exists before moving on.
-if(-not(Test-Path -Path "$local_file_path")){
-    Write-Host "!! Error '$local_file_path' does not exist !!"
-    #exit 1
+    # DEBUG - Print user input for local file path.
+    Write-Host "---------[[DEBUG]] Local File Path = '$LocalDirPath'"
+
+    # Check user input local file path exists before moving on.
+    if(-not(Test-Path -Path "$LocalDirPath")){
+        Write-Host "!! Error '$LocalDirPath' does not exist !!"
+        return $false
+        #exit 1
+    }
+    else{
+
+        # Get only CSV files in local file path and loop through result list.
+        Get-ChildItem -Path "$LocalDirPath" -Filter *.csv |
+
+        ForEach-Object {
+            
+            # Create dynamic azure blob storage container path for current file.
+            $StorageBlobPath = "$StorageContainerEndpoint/$($_.BaseName)/$SASToken"
+
+            # DEBUG - Print user input for local file path.
+            #Write-Host "---------[[DEBUG]] Azure Blob Storage Path = $StorageBlobPath"
+    
+            # Use AzCopy to copy current local file to azure blob storage path.
+            azcopy cp $('"' + $_.FullName + '"') $('"' + $StorageBlobPath + '"')
+
+            Write-Host "[LOG] Successfully copied '$($LocalDirPath)\$_' to '$StorageContainerEndpoint/$($_.BaseName)/$_'"
+        }
+
+        return $true
+    }
 }
-else{
 
-    # Get only CSV files in local file path and loop through result list.
-    Get-ChildItem -Path "$local_file_path" -Filter *.csv |
+# Start watch to measure E2E time duration
+$StopWatch = [System.Diagnostics.StopWatch]::StartNew()
 
-    ForEach-Object {
-        
-        # Create dynamic azure blob storage container path for current file.
-        $azblob_path = "$azblob_storage_container_endpoint/$($_.BaseName)/$azblob_sas_token"
+$CurrentExecutionPolicy = CheckPSExecutionPolicy
 
-        # DEBUG - Print user input for local file path.
-        #Write-Host "---------[[DEBUG]] Azure Blob Storage Path = $azblob_path"
-   
-        # Use AzCopy to copy current local file to azure blob storage path.
-        azcopy cp $('"' + $_.FullName + '"') $('"' + $azblob_path + '"')
+$result_UploadToBlob = UploadDirFilesToBlob $StorageAccount $StorageContainer $SASToken $LocalDirPath
 
-        Write-Host "[LOG] Successfully copied '$($local_file_path)\$_' to '$azblob_storage_container_endpoint/$($_.BaseName)/$_'"
-      }
+if($result_UploadToBlob){
+    Write-Host
+    Write-Host "========================================================================================================================" -ForegroundColor DarkGreen
+    Write-Host "                                           Completed Successfully" -ForegroundColor DarkGreen
+    Write-Host "                                              Total Duration" -ForegroundColor DarkGreen
+    Write-Host "                                            "$StopWatch.Elapsed -ForegroundColor DarkGreen
+    Write-Host "========================================================================================================================" -ForegroundColor DarkGreen
+
 }
 
