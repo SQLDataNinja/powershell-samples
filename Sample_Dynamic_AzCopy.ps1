@@ -20,11 +20,14 @@ sample scripts or documentation, even if Microsoft has been advised of the possi
 # Last Update :   10-18-2020
 ##############################################################
 
-$orig_execution_policy =  Get-ExecutionPolicy
+# Initialize Variables
 $azblob_sas_token = ''
 $azblob_storage_acct = ''
 $azblob_storage_acct_container = ''
 $azblob_storage_container_endpoint = ''
+
+# Store to variable current PowerShell ExecutionPolicy 
+$orig_execution_policy =  Get-ExecutionPolicy
 
 # DEBUG - Print Current Execution Policy.
 #Write-Host "---------[[DEBUG]] Current Execution Policy = $orig_execution_policy"
